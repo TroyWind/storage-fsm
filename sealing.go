@@ -133,6 +133,7 @@ func (m *Sealing) newSector(sid abi.SectorNumber, rt abi.RegisteredSealProof, pi
 	log.Infof("Start sealing %d", sid)
 	return m.sectors.Send(uint64(sid), SectorStart{
 		ID:         sid,
+		// CCUpgrade: TODO,
 		Pieces:     pieces,
 		SectorType: rt,
 	})

@@ -49,12 +49,14 @@ func (evt SectorForceState) applyGlobal(state *SectorInfo) bool {
 
 type SectorStart struct {
 	ID         abi.SectorNumber
+	CCUpgrade  *abi.SectorNumber
 	SectorType abi.RegisteredSealProof
 	Pieces     []Piece
 }
 
 func (evt SectorStart) apply(state *SectorInfo) {
 	state.SectorNumber = evt.ID
+	state.CCUpgrade = evt.CCUpgrade
 	state.Pieces = evt.Pieces
 	state.SectorType = evt.SectorType
 }

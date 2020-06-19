@@ -157,10 +157,13 @@ func (m *Sealing) handlePreCommitting(ctx statemachine.Context, sector SectorInf
 		return ctx.Send(SectorSealPreCommit1Failed{xerrors.Errorf("handlePreCommitting: failed to compute pre-commit expiry: %w", err)})
 	}
 
+	// TODO: check CC-upgrade
+
 	params := &miner.SectorPreCommitInfo{
 		Expiration:   expiration,
 		SectorNumber: sector.SectorNumber,
 		SealProof:    sector.SectorType,
+		// Upgrade: sector.CCUpgrade,
 
 		SealedCID:     *sector.CommR,
 		SealRandEpoch: sector.TicketEpoch,

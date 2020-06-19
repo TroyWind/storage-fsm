@@ -49,6 +49,7 @@ type Log struct {
 type SectorInfo struct {
 	State        SectorState
 	SectorNumber abi.SectorNumber
+	CCUpgrade    *abi.SectorNumber
 
 	SectorType abi.RegisteredSealProof
 
