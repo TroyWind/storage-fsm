@@ -132,11 +132,15 @@ func (m *Sealing) SealPiece(ctx context.Context, size abi.UnpaddedPieceSize, r i
 func (m *Sealing) newSector(sid abi.SectorNumber, rt abi.RegisteredSealProof, pieces []Piece) error {
 	log.Infof("Start sealing %d", sid)
 	return m.sectors.Send(uint64(sid), SectorStart{
-		ID:         sid,
+		ID: sid,
 		// CCUpgrade: TODO,
 		Pieces:     pieces,
 		SectorType: rt,
 	})
+}
+
+func (m *Sealing) Remove(ctx context.Context, sid abi.SectorNumber) error {
+	return m.sectors.Send(uint64(sid), SectorRemove{})
 }
 
 func (m *Sealing) minerSector(num abi.SectorNumber) abi.SectorID {
