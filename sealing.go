@@ -2,6 +2,8 @@ package sealing
 
 import (
 	"context"
+	"github.com/filecoin-project/storage-fsm/lib/dlog/dsfsmlog"
+	"go.uber.org/zap"
 	"io"
 
 	"github.com/ipfs/go-cid"
@@ -100,6 +102,7 @@ func (m *Sealing) AllocatePiece(size abi.UnpaddedPieceSize) (sectorID abi.Sector
 	if err != nil {
 		return 0, 0, xerrors.Errorf("initializing sector: %w", err)
 	}
+	dsfsmlog.L.Debug("AllocatePiece", zap.Uint64("size", uint64(size)), zap.Uint64("sector id", uint64(sid)))
 
 	// offset hard-coded to 0 since we only put one thing in a sector for now
 	return sid, 0, nil
@@ -117,6 +120,7 @@ func (m *Sealing) SealPiece(ctx context.Context, size abi.UnpaddedPieceSize, r i
 	if err != nil {
 		return xerrors.Errorf("bad sector size: %w", err)
 	}
+	dsfsmlog.L.Debug("SealPiece", zap.Uint64("DealID", uint64(d.DealID)), zap.Int64("seal proof type", int64(rt)))
 
 	return m.newSector(sectorID, rt, []Piece{
 		{
@@ -131,6 +135,7 @@ func (m *Sealing) SealPiece(ctx context.Context, size abi.UnpaddedPieceSize, r i
 // garbage data)
 func (m *Sealing) newSector(sid abi.SectorNumber, rt abi.RegisteredSealProof, pieces []Piece) error {
 	log.Infof("Start sealing %d", sid)
+	dsfsmlog.L.Debug("newSector send start seal sector", zap.Uint64("sector id", uint64(sid)), zap.Int("pieces len", len(pieces)))
 	return m.sectors.Send(uint64(sid), SectorStart{
 		ID:         sid,
 		Pieces:     pieces,

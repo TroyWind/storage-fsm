@@ -8,5 +8,5 @@ import (
 var L *zap.Logger
 
 func init() {
-	L = util.GetXDebugLog("data-trans")
+	L = util.GetXDebugLog("storage-fsm")
 }
