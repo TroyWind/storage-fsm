@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 func GetXDebugLog(moduleName string) *zap.Logger {
@@ -33,8 +34,9 @@ func LogToWorkDir(workDir, moduleName string, level zapcore.Level, delOld bool) 
 		}
 	}
 
-	outP := filepath.Join(logP, moduleName + "-out.log")
-	errP := filepath.Join(logP, moduleName + "-err.log")
+	appName := filepath.Base(CurExecPath())
+	outP := filepath.Join(logP, strings.Join([]string{moduleName, appName, "out.log"}, "-"))
+	errP := filepath.Join(logP, strings.Join([]string{moduleName, appName, "err.log"}, "-"))
 	if delOld {
 		_ = os.Remove(outP)
 		_ = os.Remove(errP)
