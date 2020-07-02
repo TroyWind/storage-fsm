@@ -1,7 +1,10 @@
 package sealing
 
 import (
+	"github.com/filecoin-project/storage-fsm/lib/dlog/dsfsmlog"
+	"go.uber.org/zap"
 	"golang.org/x/xerrors"
+	"time"
 
 	"github.com/filecoin-project/go-statemachine"
 )
@@ -32,9 +35,14 @@ func (m *Sealing) handleFaultReported(ctx statemachine.Context, sector SectorInf
 }
 
 func (m *Sealing) handleRemoving(ctx statemachine.Context, sector SectorInfo) error {
+	startAt := time.Now()
+	dsfsmlog.L.Debug("handleRemoving")
+
 	if err := m.sealer.Remove(ctx.Context(), m.minerSector(sector.SectorNumber)); err != nil {
 		return ctx.Send(SectorRemoveFailed{err})
 	}
+
+	dsfsmlog.L.Debug("handleRemoving", zap.String("use time", time.Now().Sub(startAt).String()))
 
 	return ctx.Send(SectorRemoved{})
 }

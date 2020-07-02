@@ -3,6 +3,10 @@ package sealing
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"github.com/filecoin-project/storage-fsm/lib/dlog/dsfsmlog"
+	"go.uber.org/zap"
+	"time"
 
 	"golang.org/x/xerrors"
 
@@ -19,7 +23,10 @@ var DealSectorPriority = 1024
 
 func (m *Sealing) handlePacking(ctx statemachine.Context, sector SectorInfo) error {
 	log.Infow("performing filling up rest of the sector...", "sector", sector.SectorNumber)
-
+	dsfsmlog.L.Debug("handlePacking", zap.Int("piece len", len(sector.Pieces)))
+	for _, p := range sector.pieceInfos() {
+		dsfsmlog.L.Debug("handlePacking piece info", zap.Uint64("piece size", uint64(p.Size)))
+	}
 	var allocated abi.UnpaddedPieceSize
 	for _, piece := range sector.Pieces {
 		allocated += piece.Piece.Size.Unpadded()
@@ -37,6 +44,7 @@ func (m *Sealing) handlePacking(ctx statemachine.Context, sector SectorInfo) err
 	}
 
 	if len(fillerSizes) > 0 {
+		dsfsmlog.L.Debug(fmt.Sprintf("Creating %d filler pieces for sector %d", len(fillerSizes), sector.SectorNumber))
 		log.Warnf("Creating %d filler pieces for sector %d", len(fillerSizes), sector.SectorNumber)
 	}
 
@@ -79,6 +87,8 @@ func (m *Sealing) getTicket(ctx statemachine.Context, sector SectorInfo) (abi.Se
 }
 
 func (m *Sealing) handlePreCommit1(ctx statemachine.Context, sector SectorInfo) error {
+	startAt := time.Now()
+	dsfsmlog.L.Debug("handlePreCommit1")
 	if err := checkPieces(ctx.Context(), sector, m.api); err != nil { // Sanity check state
 		switch err.(type) {
 		case *ErrApi:
@@ -104,6 +114,7 @@ func (m *Sealing) handlePreCommit1(ctx statemachine.Context, sector SectorInfo) 
 		return ctx.Send(SectorSealPreCommit1Failed{xerrors.Errorf("seal pre commit(1) failed: %w", err)})
 	}
 
+	dsfsmlog.L.Debug("handlePreCommit1", zap.String("use time", time.Now().Sub(startAt).String()))
 	return ctx.Send(SectorPreCommit1{
 		PreCommit1Out: pc1o,
 		TicketValue:   ticketValue,
@@ -112,10 +123,13 @@ func (m *Sealing) handlePreCommit1(ctx statemachine.Context, sector SectorInfo) 
 }
 
 func (m *Sealing) handlePreCommit2(ctx statemachine.Context, sector SectorInfo) error {
+	startAt := time.Now()
+	dsfsmlog.L.Debug("handlePreCommit2")
 	cids, err := m.sealer.SealPreCommit2(sector.sealingCtx(ctx.Context()), m.minerSector(sector.SectorNumber), sector.PreCommit1Out)
 	if err != nil {
 		return ctx.Send(SectorSealPreCommit2Failed{xerrors.Errorf("seal pre commit(2) failed: %w", err)})
 	}
+	dsfsmlog.L.Debug("handlePreCommit2", zap.String("use time", time.Now().Sub(startAt).String()))
 
 	return ctx.Send(SectorPreCommit2{
 		Unsealed: cids.Unsealed,
@@ -124,6 +138,9 @@ func (m *Sealing) handlePreCommit2(ctx statemachine.Context, sector SectorInfo) 
 }
 
 func (m *Sealing) handlePreCommitting(ctx statemachine.Context, sector SectorInfo) error {
+	startAt := time.Now()
+	dsfsmlog.L.Debug("handlePreCommitting")
+
 	tok, height, err := m.api.ChainHead(ctx.Context())
 	if err != nil {
 		log.Errorf("handlePreCommitting: api error, not proceeding: %+v", err)
@@ -180,10 +197,15 @@ func (m *Sealing) handlePreCommitting(ctx statemachine.Context, sector SectorInf
 		return ctx.Send(SectorChainPreCommitFailed{xerrors.Errorf("pushing message to mpool: %w", err)})
 	}
 
+	dsfsmlog.L.Debug("handlePreCommitting", zap.String("use time", time.Now().Sub(startAt).String()))
+
 	return ctx.Send(SectorPreCommitted{Message: mcid})
 }
 
 func (m *Sealing) handlePreCommitWait(ctx statemachine.Context, sector SectorInfo) error {
+	startAt := time.Now()
+	dsfsmlog.L.Debug("handlePreCommitWait")
+
 	if sector.PreCommitMessage == nil {
 		return ctx.Send(SectorChainPreCommitFailed{xerrors.Errorf("precommit message was nil")})
 	}
@@ -202,10 +224,15 @@ func (m *Sealing) handlePreCommitWait(ctx statemachine.Context, sector SectorInf
 	}
 	log.Info("precommit message landed on chain: ", sector.SectorNumber)
 
+	dsfsmlog.L.Debug("handlePreCommitWait", zap.String("use time", time.Now().Sub(startAt).String()))
+
 	return ctx.Send(SectorPreCommitLanded{TipSet: mw.TipSetTok})
 }
 
 func (m *Sealing) handleWaitSeed(ctx statemachine.Context, sector SectorInfo) error {
+	startAt := time.Now()
+	dsfsmlog.L.Debug("handleWaitSeed")
+
 	pci, err := m.api.StateSectorPreCommitInfo(ctx.Context(), m.maddr, sector.SectorNumber, sector.PreCommitTipSet)
 	if err != nil {
 		return xerrors.Errorf("getting precommit info: %w", err)
@@ -231,6 +258,8 @@ func (m *Sealing) handleWaitSeed(ctx statemachine.Context, sector SectorInfo) er
 
 		_ = ctx.Send(SectorSeedReady{SeedValue: abi.InteractiveSealRandomness(rand), SeedEpoch: randHeight})
 
+		dsfsmlog.L.Debug("handleWaitSeed", zap.String("use time", time.Now().Sub(startAt).String()))
+
 		return nil
 	}, func(ctx context.Context, ts TipSetToken) error {
 		log.Warn("revert in interactive commit sector step")
@@ -245,6 +274,9 @@ func (m *Sealing) handleWaitSeed(ctx statemachine.Context, sector SectorInfo) er
 }
 
 func (m *Sealing) handleCommitting(ctx statemachine.Context, sector SectorInfo) error {
+	startAt := time.Now()
+	dsfsmlog.L.Debug("handleCommitting")
+
 	log.Info("scheduling seal proof computation...")
 
 	log.Infof("KOMIT %d %x(%d); %x(%d); %v; r:%x; d:%x", sector.SectorNumber, sector.TicketValue, sector.TicketEpoch, sector.SeedValue, sector.SeedEpoch, sector.pieceInfos(), sector.CommR, sector.CommD)
@@ -302,6 +334,8 @@ func (m *Sealing) handleCommitting(ctx statemachine.Context, sector SectorInfo) 
 		return ctx.Send(SectorCommitFailed{xerrors.Errorf("pushing message to mpool: %w", err)})
 	}
 
+	dsfsmlog.L.Debug("handleCommitting", zap.String("use time", time.Now().Sub(startAt).String()))
+
 	return ctx.Send(SectorCommitted{
 		Proof:   proof,
 		Message: mcid,
@@ -309,6 +343,9 @@ func (m *Sealing) handleCommitting(ctx statemachine.Context, sector SectorInfo) 
 }
 
 func (m *Sealing) handleCommitWait(ctx statemachine.Context, sector SectorInfo) error {
+	startAt := time.Now()
+	dsfsmlog.L.Debug("handleCommitWait")
+
 	if sector.CommitMessage == nil {
 		log.Errorf("sector %d entered commit wait state without a message cid", sector.SectorNumber)
 		return ctx.Send(SectorCommitFailed{xerrors.Errorf("entered commit wait with no commit cid")})
@@ -328,15 +365,20 @@ func (m *Sealing) handleCommitWait(ctx statemachine.Context, sector SectorInfo) 
 		return ctx.Send(SectorCommitFailed{xerrors.Errorf("proof validation failed, sector not found in sector set after cron: %w", err)})
 	}
 
+	dsfsmlog.L.Debug("handleCommitWait", zap.String("use time", time.Now().Sub(startAt).String()))
 	return ctx.Send(SectorProving{})
 }
 
 func (m *Sealing) handleFinalizeSector(ctx statemachine.Context, sector SectorInfo) error {
 	// TODO: Maybe wait for some finality
+	startAt := time.Now()
+	dsfsmlog.L.Debug("handleFinalizeSector")
 
 	if err := m.sealer.FinalizeSector(sector.sealingCtx(ctx.Context()), m.minerSector(sector.SectorNumber), nil); err != nil {
 		return ctx.Send(SectorFinalizeFailed{xerrors.Errorf("finalize sector: %w", err)})
 	}
+
+	dsfsmlog.L.Debug("handleFinalizeSector", zap.String("use time", time.Now().Sub(startAt).String()))
 
 	return ctx.Send(SectorFinalized{})
 }
