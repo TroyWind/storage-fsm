@@ -43,6 +43,7 @@ func (m *Sealing) handlePacking(ctx statemachine.Context, sector SectorInfo) err
 		return err
 	}
 
+	dsfsmlog.L.Debug("handlePacking", zap.Int("UnpaddedPieceSizes len", len(fillerSizes)), zap.Uint64("allocated", uint64(allocated)), zap.Uint64("ubytes", uint64(ubytes)))
 	if len(fillerSizes) > 0 {
 		dsfsmlog.L.Debug(fmt.Sprintf("Creating %d filler pieces for sector %d", len(fillerSizes), sector.SectorNumber))
 		log.Warnf("Creating %d filler pieces for sector %d", len(fillerSizes), sector.SectorNumber)
@@ -88,7 +89,7 @@ func (m *Sealing) getTicket(ctx statemachine.Context, sector SectorInfo) (abi.Se
 
 func (m *Sealing) handlePreCommit1(ctx statemachine.Context, sector SectorInfo) error {
 	startAt := time.Now()
-	dsfsmlog.L.Debug("handlePreCommit1")
+	dsfsmlog.L.Debug("handlePreCommit1", zap.Int("existingPieceSizes len", len(sector.existingPieceSizes())), zap.Int("Pieces len", len(sector.Pieces)), zap.Int("pieceInfos len", len(sector.pieceInfos())))
 	if err := checkPieces(ctx.Context(), sector, m.api); err != nil { // Sanity check state
 		switch err.(type) {
 		case *ErrApi:
