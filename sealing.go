@@ -56,6 +56,8 @@ type Sealing struct {
 	verif   ffiwrapper.Verifier
 
 	pcp PreCommitPolicy
+
+	curSector *SectorStart
 }
 
 func New(api SealingAPI, events Events, maddr address.Address, ds datastore.Batching, sealer sectorstorage.SectorManager, sc SectorIDCounter, verif ffiwrapper.Verifier, pcp PreCommitPolicy) *Sealing {
