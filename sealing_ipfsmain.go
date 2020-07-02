@@ -14,26 +14,6 @@ import (
 	"github.com/filecoin-project/specs-actors/actors/abi"
 )
 
-func (m *Sealing) genNewSector() (*SectorStart, error) {
-	sid, err := m.sc.Next()
-	if err != nil {
-		return nil, xerrors.Errorf("getting sector number: %w", err)
-	}
-	rt, err := ffiwrapper.SealProofTypeFromSectorSize(m.sealer.SectorSize())
-	if err != nil {
-		return nil, err
-	}
-	// todo 0702版本的 lotus 官方还未实现 NewSector，如果以后实现了需要检查下这部分代码是否正确
-	err = m.sealer.NewSector(context.TODO(), m.minerSector(sid))
-	if err != nil {
-		return nil, xerrors.Errorf("initializing sector: %w", err)
-	}
-	return &SectorStart{
-		ID:         sid,
-		SectorType: rt,
-	}, nil
-}
-
 // 外边应该是 AllocatePieceIfNeeded 和 SealPieceIfNeeded 一起用的，因此需要加锁。不过通过回调可以把锁放这里，应该更合理
 // 必须要在外层加锁
 func (m *Sealing) AllocatePieceAndSendIfNeeded(size abi.UnpaddedPieceSize) (sectorID abi.SectorNumber, offset uint64, err error) {
@@ -80,6 +60,7 @@ func (m *Sealing) AllocatePieceAndSendIfNeeded(size abi.UnpaddedPieceSize) (sect
 }
 
 // 进来piece就将其加到当前的sector中，如果加不了则新建一个sector，并启动当前sector的密封
+// 必须与 AllocatePieceAndSendIfNeeded 配合使用
 func (m *Sealing) AddPiece(ctx context.Context, size abi.UnpaddedPieceSize, r io.Reader, sectorID abi.SectorNumber, d DealInfo) error {
 	log.Infof("add piece %d", d.DealID)
 
@@ -96,6 +77,26 @@ func (m *Sealing) AddPiece(ctx context.Context, size abi.UnpaddedPieceSize, r io
 	})
 
 	return nil
+}
+
+func (m *Sealing) genNewSector() (*SectorStart, error) {
+	sid, err := m.sc.Next()
+	if err != nil {
+		return nil, xerrors.Errorf("getting sector number: %w", err)
+	}
+	rt, err := ffiwrapper.SealProofTypeFromSectorSize(m.sealer.SectorSize())
+	if err != nil {
+		return nil, err
+	}
+	// todo 0702版本的 lotus 官方还未实现 NewSector，如果以后实现了需要检查下这部分代码是否正确
+	err = m.sealer.NewSector(context.TODO(), m.minerSector(sid))
+	if err != nil {
+		return nil, xerrors.Errorf("initializing sector: %w", err)
+	}
+	return &SectorStart{
+		ID:         sid,
+		SectorType: rt,
+	}, nil
 }
 
 func (m *Sealing) validSectorSize(existingPieceSizes []abi.UnpaddedPieceSize, pieceSize abi.UnpaddedPieceSize) bool {
