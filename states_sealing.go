@@ -43,7 +43,7 @@ func (m *Sealing) handlePacking(ctx statemachine.Context, sector SectorInfo) err
 		return err
 	}
 
-	dsfsmlog.L.Debug("handlePacking", zap.Int("UnpaddedPieceSizes len", len(fillerSizes)), zap.Uint64("allocated", uint64(allocated)), zap.Uint64("ubytes", uint64(ubytes)))
+	dsfsmlog.L.Debug("handlePacking", zap.Int("fillerSizes len", len(fillerSizes)), zap.Uint64("allocated", uint64(allocated)), zap.Uint64("ubytes", uint64(ubytes)))
 	if len(fillerSizes) > 0 {
 		dsfsmlog.L.Debug(fmt.Sprintf("Creating %d filler pieces for sector %d", len(fillerSizes), sector.SectorNumber))
 		log.Warnf("Creating %d filler pieces for sector %d", len(fillerSizes), sector.SectorNumber)

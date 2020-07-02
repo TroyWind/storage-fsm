@@ -69,7 +69,7 @@ func (m *Sealing) AddPiece(ctx context.Context, size abi.UnpaddedPieceSize, r io
 		return xerrors.Errorf("adding piece to sector: %w", err)
 	}
 
-	dsfsmlog.L.Debug("AddPiece to queue", zap.Uint64("sector id", uint64(sectorID)), zap.Uint64("deal id", uint64(d.DealID)))
+	dsfsmlog.L.Debug("adding piece to sector", zap.Uint64("sector id", uint64(sectorID)), zap.Uint64("deal id", uint64(d.DealID)))
 	// 放入待处理列表
 	m.curSector.Pieces = append(m.curSector.Pieces, Piece{
 		Piece:    ppi,
