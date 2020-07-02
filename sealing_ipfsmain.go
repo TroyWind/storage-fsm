@@ -106,9 +106,12 @@ func (m *Sealing) validSectorSize(existingPieceSizes []abi.UnpaddedPieceSize, pi
 		offset += size
 	}
 
+	sizeAfterAdd := offset.Padded() + pieceSize.Padded()
 	maxPieceSize := abi.PaddedPieceSize(m.sealer.SectorSize())
 
-	if offset.Padded() + pieceSize.Padded() > maxPieceSize {
+	dsfsmlog.L.Debug("validSectorSize", zap.Uint64("size after new add", uint64(sizeAfterAdd)), zap.Uint64("maxPieceSize", uint64(maxPieceSize)))
+
+	if sizeAfterAdd > maxPieceSize {
 		//return abi.PieceInfo{}, xerrors.Errorf("can't add %d byte piece to sector %v with %d bytes of existing pieces", pieceSize, sector, offset)
 		return false
 	}
