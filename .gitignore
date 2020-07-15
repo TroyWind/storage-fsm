@@ -22,3 +22,5 @@
 # build artifacts
 build/.filecoin-ffi-install
 build/.update-submodules
+
+/.idea

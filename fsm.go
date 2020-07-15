@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/filecoin-project/storage-fsm/lib/dlog/dsfsmlog"
+	"go.uber.org/zap"
 	"reflect"
 	"time"
 
@@ -310,8 +312,9 @@ func (m *Sealing) restartSectors(ctx context.Context) error {
 	if err != nil {
 		log.Errorf("loading sector list: %+v", err)
 	}
-
+	dsfsmlog.L.Debug("restartSectors", zap.Int("trackedSectors len", len(trackedSectors)))
 	for _, sector := range trackedSectors {
+		dsfsmlog.L.Debug("SectorRestart", zap.Any("sector.SectorNumber", sector.SectorNumber), zap.Any("sector.State", sector.State), zap.Any("last err", sector.LastErr))
 		if err := m.sectors.Send(uint64(sector.SectorNumber), SectorRestart{}); err != nil {
 			log.Errorf("restarting sector %d: %+v", sector.SectorNumber, err)
 		}

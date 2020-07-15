@@ -2,6 +2,8 @@ package sealing
 
 import (
 	"context"
+	"github.com/filecoin-project/storage-fsm/lib/dlog/dsfsmlog"
+	"go.uber.org/zap"
 	"io"
 	"sync"
 	"time"
@@ -148,6 +150,7 @@ func (m *Sealing) addPiece(sectorID abi.SectorNumber, piece Piece) error {
 		stored:     ui.stored + uint64(piece.Piece.Size.Unpadded()),
 		pieceSizes: append(ui.pieceSizes, piece.Piece.Size.Unpadded()),
 	}
+	dsfsmlog.L.Debug("AllocatePiece", zap.Uint64("size", uint64(size)), zap.Uint64("sector id", uint64(sid)))
 
 	return nil
 }
@@ -198,6 +201,7 @@ func (m *Sealing) newSector() (abi.SectorNumber, error) {
 	if err != nil {
 		return 0, xerrors.Errorf("bad sector size: %w", err)
 	}
+	dsfsmlog.L.Debug("SealPiece", zap.Uint64("DealID", uint64(d.DealID)), zap.Int64("seal proof type", int64(rt)))
 
 	log.Infof("Creating sector %d", sid)
 	err = m.sectors.Send(uint64(sid), SectorStart{
